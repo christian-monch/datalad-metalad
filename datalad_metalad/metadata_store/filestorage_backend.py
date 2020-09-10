@@ -1,6 +1,7 @@
-from typing import Tuple
+import subprocess
+from typing import Any, Tuple
 
-from .storage_backend import StorageBackend
+from storage_backend import StorageBackend
 
 
 class FileStorageBackend(StorageBackend):
@@ -10,15 +11,17 @@ class FileStorageBackend(StorageBackend):
         self.file = open(self.file_name, "ab+")
         self.current_offset = self.file.tell()
         self.write_cache = []
+        self.join = join
 
     def __len__(self):
-        return self.current_offset
+        return self.current_offset + max([
+            cache_entry[0] + cache_entry[1] for cache_entry in self.write_cache] or [0])
 
     def append_content(self, content: bytearray) -> Tuple[int, int]:
         self.write_cache.append((self.current_offset, content))
         size = len(content)
         self.current_offset += size
-        return self.current_offset, self.current_offset - size
+        return self.current_offset - size, size
 
     def read_content(self, offset: int, size: int) -> bytes:
         self.flush()
@@ -35,3 +38,19 @@ class FileStorageBackend(StorageBackend):
             current_position += (offset + len(content))
         self.file.flush()
         self.write_cache = []
+
+
+def join(joined_file_name, left_backend, right_backend) -> Tuple[Any, int, int]:
+    assert left_backend != right_backend
+    assert isinstance(left_backend, FileStorageBackend)
+    assert isinstance(right_backend, FileStorageBackend)
+    assert joined_file_name != left_backend.file_name
+    assert joined_file_name != right_backend.file_name
+
+    left_backend.flush()
+    right_backend.flush()
+    subprocess.run(
+        f"cat '{left_backend.file_name}' '{right_backend.file_name}' > '{joined_file_name}'",
+        shell=True)
+
+    return FileStorageBackend(joined_file_name), 0, len(left_backend)

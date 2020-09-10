@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+from collections import namedtuple
 from typing import Iterator, Optional, Type
 
 from datalad_metalad.metadata_store.exceptions import PathAlreadyExists
@@ -12,10 +13,7 @@ from datalad_metalad.metadata_store.storage_backend import StorageBackend
 LOGGER = logging.getLogger("metadata_store")
 
 
-class RegionEntry(object):
-    def __init__(self, content_offset, size):
-        self.content_offset = content_offset
-        self.size = size
+RegionEntry = namedtuple("RegionEntry", ["content_offset", "size"])
 
 
 class SimpleFileIndex(FileIndex):
@@ -36,7 +34,7 @@ class SimpleFileIndex(FileIndex):
                 LOGGER.warning(f"no index found at {self.index_file_name}")
 
         self.storage_backend = storage_backend_class(self.storage_file_name)
-        self.dirty = False
+        self.dirty = True
 
     def __contains__(self, path: str):
         return path in self.paths
@@ -118,17 +116,107 @@ def join(joined_base_dir_name: str,
          left_prefix: str,
          left_index: SimpleFileIndex,
          right_prefix: str,
-         right_index: SimpleFileIndex):
-    """ merge two indices """
+         right_index: SimpleFileIndex) -> SimpleFileIndex:
 
-    assert type(left_index) == type(right_index)
+    assert left_index != right_index
+    assert left_prefix != right_prefix
+    assert isinstance(left_index, SimpleFileIndex)
+    assert isinstance(right_index, SimpleFileIndex)
     assert type(left_index.storage_backend) == type(right_index.storage_backend)
+    assert left_index.base_dir_name != joined_base_dir_name
+    assert right_index.base_dir_name != left_index.base_dir_name
+
+    joined_backend, left_offset, right_offset = left_index.storage_backend.join(
+        os.path.join(joined_base_dir_name, "content"),
+        left_index.storage_backend,
+        right_index.storage_backend)
 
     joined_index = SimpleFileIndex(
         joined_base_dir_name,
         type(left_index.storage_backend),
         True)
 
-    entries_from_left = [
+    # Fix paths
+    fixed_paths_from_left = {
+        left_prefix + "/" + path: RegionEntry(region.content_offset + left_offset, region.size)
+        for path, region in left_index.paths.items()}
 
-    ]
+    fixed_paths_from_right = {
+        right_prefix + "/" + path: RegionEntry(region.content_offset + right_offset, region.size)
+        for path, region in right_index.paths.items()}
+
+    joined_index.paths = {
+        **fixed_paths_from_left,
+        **fixed_paths_from_right
+    }
+
+    # Fix deleted regions
+    fixed_deleted_regions_from_left = [
+        RegionEntry(region.content_offset + left_offset, region.size) for region in left_index.deleted_regions]
+
+    fixed_deleted_regions_from_right = [
+        RegionEntry(region.content_offset + right_offset, region.size) for region in right_index.deleted_regions]
+
+    joined_index.deleted_regions = fixed_deleted_regions_from_left + fixed_deleted_regions_from_right
+
+    joined_index.dirty = True
+    return joined_index
+
+
+SimpleFileIndex.join = join
+
+
+
+if __name__ == "__main__":
+    import time
+    from datalad_metalad.metadata_store.filestorage_backend import FileStorageBackend
+
+    entries = 100
+
+    lios = SimpleFileIndex("/home/cristian/tmp/index_store_test/left", FileStorageBackend)
+    try:
+        for i in range(entries):
+            lios.add_content(f"e{i}", bytearray(f"#{i}", encoding="utf-8"))
+        lios.flush()
+    except PathAlreadyExists:
+        print("sl seems to be set, skipping its creation")
+
+    rios = SimpleFileIndex("/home/cristian/tmp/index_store_test/right", FileStorageBackend)
+    try:
+        for i in range(entries):
+            rios.add_content(f"e{i}", bytearray(f"#{i}", encoding="utf-8"))
+        rios.flush()
+    except PathAlreadyExists:
+        print("sr seems to be set, skipping its creation")
+
+    start_time = time.time()
+
+    combined_ios = SimpleFileIndex.join(
+        "/home/cristian/tmp/index_store_test/joined",
+        "left", lios,
+        "right", rios)
+
+    combine_time = time.time()
+    print(f"duration of combine: {int(combine_time - start_time)}")
+
+    combined_ios.flush()
+
+    flush_time = time.time()
+    print(f"duration of flush: {int(flush_time - combine_time)}")
+
+    print("----------------")
+    print(lios.paths)
+    print(lios.deleted_regions)
+
+    print("----------------")
+    print(rios.paths)
+    print(rios.deleted_regions)
+
+    print("----------------")
+    print(combined_ios.paths)
+    print(combined_ios.deleted_regions)
+
+    combined_ios.flush()
+
+    print(f"combined_ios('left/e10'): {combined_ios.get_content('left/e10')}")
+    print(f"combined_ios('right/e20'): {combined_ios.get_content('right/e20')}")

@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
-from typing import Tuple
+from typing import Any, Tuple
 
 
-class StorageBackend(object): #  metaclass=ABCMeta):
+class StorageBackend(metaclass=ABCMeta):
     def __init__(self, file_name: str):
         self.file_name = file_name
 
@@ -20,3 +20,11 @@ class StorageBackend(object): #  metaclass=ABCMeta):
     @abstractmethod
     def flush(self):
         pass
+
+    @staticmethod
+    def join(joined_file_name, left_backend, right_backend) -> Tuple[Any, int, int]:
+        """
+        Returns a joined storage object, the index correction of the left entries and
+        the index correction of the right entries
+        """
+        raise NotImplementedError
