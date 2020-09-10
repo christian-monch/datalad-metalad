@@ -4,9 +4,9 @@ import os
 import re
 from typing import Iterator, Optional, Type
 
-from .exceptions import PathAlreadyExists
-from fileindex import FileIndex
-from storage_backend import StorageBackend
+from datalad_metalad.metadata_store.exceptions import PathAlreadyExists
+from datalad_metalad.metadata_store.fileindex import FileIndex
+from datalad_metalad.metadata_store.storage_backend import StorageBackend
 
 
 LOGGER = logging.getLogger("metadata_store")
@@ -22,17 +22,18 @@ class SimpleFileIndex(FileIndex):
 
     IndexVersion = "SimpleFileIndex-0.1"
 
-    def __init__(self, base_dir_name: str, storage_backend_class: Type[StorageBackend]):
+    def __init__(self, base_dir_name: str, storage_backend_class: Type[StorageBackend], empty: Optional[bool] = False):
         self.base_dir_name = base_dir_name
         self.index_file_name = os.path.join(self.base_dir_name, "index.json")
         self.storage_file_name = os.path.join(self.base_dir_name, "content")
 
-        try:
-            self.read()
-        except FileNotFoundError:
-            LOGGER.warning(f"no index found at {self.index_file_name}")
-            self.paths = {}
-            self.deleted_regions = []
+        self.paths = {}
+        self.deleted_regions = []
+        if not empty:
+            try:
+                self.read()
+            except FileNotFoundError:
+                LOGGER.warning(f"no index found at {self.index_file_name}")
 
         self.storage_backend = storage_backend_class(self.storage_file_name)
         self.dirty = False
@@ -111,3 +112,23 @@ class SimpleFileIndex(FileIndex):
     def flush(self):
         self.storage_backend.flush()
         self.write()
+
+
+def join(joined_base_dir_name: str,
+         left_prefix: str,
+         left_index: SimpleFileIndex,
+         right_prefix: str,
+         right_index: SimpleFileIndex):
+    """ merge two indices """
+
+    assert type(left_index) == type(right_index)
+    assert type(left_index.storage_backend) == type(right_index.storage_backend)
+
+    joined_index = SimpleFileIndex(
+        joined_base_dir_name,
+        type(left_index.storage_backend),
+        True)
+
+    entries_from_left = [
+
+    ]
