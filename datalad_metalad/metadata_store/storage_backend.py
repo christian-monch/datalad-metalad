@@ -1,22 +1,22 @@
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
+from typing import Tuple
 
 
-class StorageBackend(ABC):
-    def __init__(self, max_file_size):
-        self.max_file_size = max_file_size
-
-    @abstractmethod
-    def add(self, path: str, content: bytes):
-        raise NotImplemented
+class StorageBackend(object): #  metaclass=ABCMeta):
+    def __init__(self, file_name: str):
+        self.file_name = file_name
 
     @abstractmethod
-    def get(self, path: str):
-        raise NotImplemented
+    def append_content(self, content: bytearray) -> Tuple[int, int]:
+        """ Append content and return the offset at which the content was stored and the size of the stored content """
+        pass
 
     @abstractmethod
-    def delete(self, path: str):
-        raise NotImplemented
+    def read_content(self, offset: int, size: int) -> bytes:
+        """ read content of size "size" at offset "offset". Notice that len(bytes) might be larger
+            than size, if the storage is compressed """
+        pass
 
     @abstractmethod
-    def replace(self, path: str, content: bytes):
-        raise NotImplemented
+    def flush(self):
+        pass

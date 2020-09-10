@@ -49,6 +49,7 @@ c md1 index:
 
 """
 import json
+import logging
 import os
 import subprocess
 from collections import namedtuple
@@ -56,12 +57,13 @@ from itertools import chain
 from pathlib import PosixPath
 from typing import Dict, List, Union
 
+from exceptions import PathAlreadyExists
 
-PathEntry = namedtuple("PathEntry", ("file_number", "offset", "size"))
+
+LOGGER = logging.getLogger("metadata_store")
 
 
-class PathAlreadyExists(Exception):
-    pass
+ContentEntry = namedtuple("ContentEntry", ("file_number", "offset", "size"))
 
 
 class MetadataStore(object):
@@ -82,8 +84,8 @@ class MetadataStore(object):
 
         self.current_file_index = 0
         self.current_offset = 0
-        self.paths: Dict[str, PathEntry] = {}
-        self.deleted_paths: List[PathEntry, ...] = []
+        self.paths: Dict[str, ContentEntry] = {}
+        self.deleted_paths: List[ContentEntry, ...] = []
         self.content = bytearray()
         self.content_modified = False
         self.index_modified = False
@@ -98,6 +100,13 @@ class MetadataStore(object):
     def __contains__(self, path: str):
         return path in self.paths
 
+    def __len__(self):
+        return len(self.paths)
+
+    @classmethod
+    def set_maximum_content_size(cls, size: int):
+        cls.MaximumContentSize = size
+
     def _current_content_file_name(self) -> PosixPath:
         return self._content_file_name(self.current_file_index)
 
@@ -108,7 +117,7 @@ class MetadataStore(object):
         return self.storage_dir / f"{self.IndexFileName}"
 
     def _add_content_to_current_file(self, path: str, content: bytearray):
-        self.paths[path] = PathEntry(self.current_file_index, self.current_offset, len(content))
+        self.paths[path] = ContentEntry(self.current_file_index, self.current_offset, len(content))
         self.current_offset += len(content)
         self.content += content
         self.content_modified = True
@@ -140,11 +149,11 @@ class MetadataStore(object):
         self.current_file_index = index_info["file_number"]
         self.current_offset = index_info["offset"]
         self.paths = {
-            path: PathEntry(entry_list[0], entry_list[1], entry_list[2])
+            path: ContentEntry(entry_list[0], entry_list[1], entry_list[2])
             for path, entry_list in index_info["paths"].items()
         }
         self.deleted_paths = [
-            PathEntry(entry_list[0], entry_list[1], entry_list[2])
+            ContentEntry(entry_list[0], entry_list[1], entry_list[2])
             for entry_list in index_info["deleted_paths"]
         ]
 
@@ -155,7 +164,7 @@ class MetadataStore(object):
     def _next_content_file(self):
         self.current_file_index += 1
         self.current_offset = 0
-        self.content = bytes()
+        self.content = bytearray()
         self.index_modified = True
 
     def add_content(self, path: str, content: bytearray):
@@ -284,7 +293,7 @@ def join(result_storage_dir: str,
 
         # remap content file and byte indices of the left store
         updated_left_paths = {
-            f"{left_prefix}/{path}": PathEntry(
+            f"{left_prefix}/{path}": ContentEntry(
                 left_content_index_mapping[path_entry.file_number], path_entry.offset, path_entry.size)
             for path, path_entry in left_store.paths.items()
         }
@@ -292,9 +301,9 @@ def join(result_storage_dir: str,
         # remap content file and byte indices of the right store
         updated_right_paths = {
             f"{right_prefix}/{path}": (
-                PathEntry(right_content_index_mapping[path_entry.file_number], path_entry.offset, path_entry.size)
+                ContentEntry(right_content_index_mapping[path_entry.file_number], path_entry.offset, path_entry.size)
                 if path_entry.file_number < right_store.current_file_index
-                else PathEntry(
+                else ContentEntry(
                     right_content_index_mapping[path_entry.file_number],
                     path_entry.offset + left_store.current_offset,
                     path_entry.size))
@@ -303,16 +312,16 @@ def join(result_storage_dir: str,
 
         # Remap deleted paths of left store
         updated_left_deleted_paths = [
-            PathEntry(left_content_index_mapping[path_entry.file_number], path_entry.offset, path_entry.size)
+            ContentEntry(left_content_index_mapping[path_entry.file_number], path_entry.offset, path_entry.size)
             for path_entry in left_store.deleted_paths
         ]
 
         # Remap deleted paths of right store
         updated_right_deleted_paths = [
             (
-                PathEntry(right_content_index_mapping[path_entry.file_number], path_entry.offset, path_entry.size)
+                ContentEntry(right_content_index_mapping[path_entry.file_number], path_entry.offset, path_entry.size)
                 if path_entry.file_number < right_store.current_file_index
-                else PathEntry(
+                else ContentEntry(
                     right_content_index_mapping[path_entry.file_number],
                     path_entry.offset + left_store.current_offset,
                     path_entry.size)

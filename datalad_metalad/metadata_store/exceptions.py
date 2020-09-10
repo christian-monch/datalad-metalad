@@ -1,0 +1,4 @@
+class PathAlreadyExists(Exception):
+    pass
+
+
