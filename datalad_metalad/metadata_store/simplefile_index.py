@@ -152,10 +152,12 @@ def join(joined_base_dir_name: str,
 
     # Fix deleted regions
     fixed_deleted_regions_from_left = [
-        RegionEntry(region.content_offset + left_offset, region.size) for region in left_index.deleted_regions]
+        RegionEntry(region.content_offset + left_offset, region.size)
+        for region in left_index.deleted_regions]
 
     fixed_deleted_regions_from_right = [
-        RegionEntry(region.content_offset + right_offset, region.size) for region in right_index.deleted_regions]
+        RegionEntry(region.content_offset + right_offset, region.size)
+        for region in right_index.deleted_regions]
 
     joined_index.deleted_regions = fixed_deleted_regions_from_left + fixed_deleted_regions_from_right
 
