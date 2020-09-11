@@ -42,13 +42,20 @@ class SimpleFileIndex(FileIndex):
     def __len__(self):
         return len(self.paths)
 
+    def __iter__(self):
+        for path, entry in self.paths.items():
+            yield path, self.storage_backend.byte_iterator(entry.content_offset, entry.size)
+
+    def _check_path_exists(self, path: str):
+        if path not in self.paths:
+            raise KeyError(f"{path} not in index")
+
     def add_region_entry(self, path: str, offset: int, size: int):
         self.paths[path] = RegionEntry(offset, size)
         self.dirty = True
 
     def get_region_entry(self, path: str) -> RegionEntry:
-        if path not in self.paths:
-            raise KeyError(f"{path} not in index")
+        self._check_path_exists(path)
         return self.paths[path]
 
     def write(self):
@@ -81,8 +88,7 @@ class SimpleFileIndex(FileIndex):
         self.dirty = False
 
     def delete_content(self, path: str):
-        if path not in self.paths:
-            raise KeyError(f"{path} not in index")
+        self._check_path_exists(path)
         self.deleted_regions.append(self.paths[path])
         del self.paths[path]
         self.dirty = True
@@ -107,6 +113,10 @@ class SimpleFileIndex(FileIndex):
             return filter(lambda key: matcher.match(key) is not None, self.paths.keys())
         return iter(self.paths.keys())
 
+    def content_iterator(self, path: str) -> Iterator:
+        self._check_path_exists(path)
+        return self.storage_backend.byte_iterator(self.paths[path].content_offset, self.paths[path].size)
+
     def flush(self):
         self.storage_backend.flush()
         self.write()
@@ -117,6 +127,9 @@ def join(joined_base_dir_name: str,
          left_index: SimpleFileIndex,
          right_prefix: str,
          right_index: SimpleFileIndex) -> SimpleFileIndex:
+
+    def join_paths(left: str, right: str) -> str:
+        return left.rstrip("/") + "/" + right.lstrip("/")
 
     assert left_index != right_index
     assert left_prefix != right_prefix
@@ -138,11 +151,11 @@ def join(joined_base_dir_name: str,
 
     # Fix paths
     fixed_paths_from_left = {
-        left_prefix + "/" + path: RegionEntry(region.content_offset + left_offset, region.size)
+        join_paths(left_prefix, path): RegionEntry(region.content_offset + left_offset, region.size)
         for path, region in left_index.paths.items()}
 
     fixed_paths_from_right = {
-        right_prefix + "/" + path: RegionEntry(region.content_offset + right_offset, region.size)
+        join_paths(right_prefix, path): RegionEntry(region.content_offset + right_offset, region.size)
         for path, region in right_index.paths.items()}
 
     joined_index.paths = {
@@ -173,7 +186,7 @@ if __name__ == "__main__":
     import time
     from datalad_metalad.metadata_store.filestorage_backend import FileStorageBackend
 
-    entries = 100
+    entries = 100 #1000000
 
     lios = SimpleFileIndex("/home/cristian/tmp/index_store_test/left", FileStorageBackend)
     try:
@@ -206,19 +219,15 @@ if __name__ == "__main__":
     flush_time = time.time()
     print(f"duration of flush: {int(flush_time - combine_time)}")
 
-    print("----------------")
-    print(lios.paths)
-    print(lios.deleted_regions)
-
-    print("----------------")
-    print(rios.paths)
-    print(rios.deleted_regions)
-
-    print("----------------")
-    print(combined_ios.paths)
-    print(combined_ios.deleted_regions)
-
-    combined_ios.flush()
-
     print(f"combined_ios('left/e10'): {combined_ios.get_content('left/e10')}")
     print(f"combined_ios('right/e20'): {combined_ios.get_content('right/e20')}")
+
+    for path, reader in combined_ios:
+        print("+" * 20)
+        print(path)
+        for b in reader:
+            print(b)
+
+    print("XXXXX" * 20)
+    for b in combined_ios.content_iterator("left/e19"):
+        print(b)

@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Tuple
+from typing import Any, Iterator, Tuple
 
 
 class StorageBackend(metaclass=ABCMeta):
@@ -15,6 +15,10 @@ class StorageBackend(metaclass=ABCMeta):
     def read_content(self, offset: int, size: int) -> bytes:
         """ read content of size "size" at offset "offset". Notice that len(bytes) might be larger
             than size, if the storage is compressed """
+        pass
+
+    @abstractmethod
+    def byte_iterator(self, offset: int, size: int) -> Iterator:
         pass
 
     @abstractmethod

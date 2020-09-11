@@ -34,6 +34,10 @@ class FileIndex(metaclass=abc.ABCMeta):
         """ Get all keys matching pattern, if pattern is provided, else all keys """
         pass
 
+    @abc.abstractmethod
+    def content_iterator(self, path: str) -> Iterator:
+        pass
+
     @staticmethod
     def join(joined_base_dir_name: str,
              left_prefix: str,

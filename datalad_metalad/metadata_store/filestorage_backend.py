@@ -4,6 +4,21 @@ from typing import Any, Tuple
 from storage_backend import StorageBackend
 
 
+class FileStorageBackendIterator:
+    def __init__(self, file_name: str, offset: int, size: int):
+        self.file = open(file_name, "rb")
+        self.file.seek(offset)
+        self.bytes_left = size
+
+    def __iter__(self):
+        while self.bytes_left > 0:
+            value = self.file.read()
+            if len(value) > self.bytes_left:
+                value = value[:self.bytes_left]
+            self.bytes_left -= len(value)
+            yield value
+
+
 class FileStorageBackend(StorageBackend):
     def __init__(self, file_name: str):
         super(FileStorageBackend, self).__init__(file_name)
@@ -27,6 +42,9 @@ class FileStorageBackend(StorageBackend):
         self.flush()
         self.file.seek(offset)
         return self.file.read(size)
+
+    def byte_iterator(self, offset: int, size: int) -> FileStorageBackendIterator:
+        return FileStorageBackendIterator(self.file_name, offset, size)
 
     def flush(self):
         self.write_cache.sort(key=lambda offset_content_pair: offset_content_pair[0])
