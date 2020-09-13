@@ -1,7 +1,7 @@
 import subprocess
 from typing import Any, Tuple
 
-from storage_backend import StorageBackend
+from datalad_metalad.metadata_store.storage_backend import StorageBackend
 
 
 class FileStorageBackendIterator:
