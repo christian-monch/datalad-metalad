@@ -18,28 +18,32 @@ from .base import MetadataExtractor
 
 class DataladNGExtractor(MetadataExtractor):
 
-    def __call__(self, dataset, refcommit, process_type, status):
-        # shortcut
-        ds = dataset
+    def _get_metadata_dir(self):
+        """
+        Until we have modified the extractor, we hard-code an extractor for every extractor here.
+        """
+        pass
 
-        total_content_bytesize = 0
+    def __call__(self, dataset, refcommit, process_type, status):
         if process_type in ('all', 'content'):
             for entry in status:
                 yield {
                     "path": entry["path"],
-                    "entry_type": entry[type],
-                    "ng_was_here": True,
-                    "type": "file",
-                    "status": "ok"
+                    "type": f"{process_type} + content",
+                    "status": "ok",
+                    "metadata": {
+                        "entry_type": entry["type"],
+                        "ng_was_here": True
+                    }
                 }
 
         if process_type in ('all', 'dataset'):
             yield {
+                "type": f"{process_type} + dataset",
+                "status": 'ok',
                 "metadata": {
                     '@id': f"http://datalad.org/{repr(dataset)}"
-                },
-                "type": 'dataset',
-                "status": 'ok'
+                }
             }
 
     def get_state(self, dataset):
