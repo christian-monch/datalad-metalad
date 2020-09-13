@@ -181,7 +181,6 @@ def join(joined_base_dir_name: str,
 SimpleFileIndex.join = join
 
 
-
 if __name__ == "__main__":
     import time
     from datalad_metalad.metadata_store.filestorage_backend import FileStorageBackend
