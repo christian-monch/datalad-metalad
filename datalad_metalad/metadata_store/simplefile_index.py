@@ -45,17 +45,21 @@ class SimpleFileIndexJSONEncoder(json.JSONEncoder):
                 "offset": obj.content_offset,
                 "size": obj.content_size
             }
-        print(obj)
-        return json.JSONEncoder.default(self, obj)
+        return obj
 
 
 def simple_file_index_json_decoder(dct):
     if "meta_metadata" in dct:
-        return DatasetIndexEntry(dct["meta_metadata"])
+        dataset_index_entry = DatasetIndexEntry(dct["meta_metadata"])
+        dataset_index_entry.format_entries = dct["format_entries"]
+        return dataset_index_entry
     if "format_entries" in dct:
-        return FileIndexEntry()
+        file_index_entry = FileIndexEntry()
+        file_index_entry.format_entries = dct["format_entries"]
+        return file_index_entry
     if "offset" in dct:
         return MetadataRegionEntry(dct["offset"], dct["size"])
+    return dct
 
 
 class SimpleFileIndex(FileIndex):
@@ -113,12 +117,12 @@ class SimpleFileIndex(FileIndex):
 
     def write(self):
         if self.dirty is True:
+            index_object = {
+                "version": self.IndexVersion,
+                "paths": self.paths,
+                "deleted_regions": self.deleted_regions}
             with open(self.index_file_name, "tw") as file:
-                file.write(json.dumps({
-                    "version": self.IndexVersion,
-                    "paths": self.paths,
-                    "deleted_regions": self.deleted_regions},
-                    cls=SimpleFileIndexJSONEncoder))
+                file.write(json.dumps(index_object, cls=SimpleFileIndexJSONEncoder))
             self.dirty = False
 
     def read(self):
@@ -269,7 +273,7 @@ if __name__ == "__main__":
             lios.add_file_entry(f"/e{i}")
             lios.add_metadata_to_path(f"/e{i}", "ng_file", bytearray(f"#{i}", encoding="utf-8"))
         lios.flush()
-    except PathAlreadyExists:
+    except (PathAlreadyExists, MetadataAlreadyExists):
         print("sl seems to be set, skipping its creation")
 
     exit(0)
