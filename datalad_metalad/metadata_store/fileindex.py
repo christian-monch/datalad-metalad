@@ -1,5 +1,8 @@
 import abc
-from typing import Any, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Union
+
+
+JSONObject = Union[Dict, List]
 
 
 class FileIndex(metaclass=abc.ABCMeta):
@@ -15,24 +18,39 @@ class FileIndex(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def add_content(self, key: str, content: bytearray):
+    def add_file_entry(self, path: str):
         pass
 
     @abc.abstractmethod
-    def replace_content(self, path: str, content: bytearray):
-        pass
-
-    def get_content(self, path: str) -> bytes:
+    def add_dataset_entry(self, path: str, meta_metadata: JSONObject):
         pass
 
     @abc.abstractmethod
-    def delete_content(self, key: str):
+    def modify_dataset_entry(self, path: str, meta_metadata: str):
         pass
 
     @abc.abstractmethod
-    def get_keys(self, pattern: Optional[str] = None) -> Iterator[str]:
-        """ Get all keys matching pattern, if pattern is provided, else all keys """
+    def add_metadata_to_path(self, path: str, metadata_format: str, content: bytearray):
         pass
+
+    @abc.abstractmethod
+    def replace_metadata_at_path(self, path: str, metadata_format: str, content: bytearray):
+        pass
+
+    def get_content(self, path: str, metadata_format: str) -> bytes:
+        pass
+
+    def get_all_content(self, path: str) -> Dict[str, bytes]:
+        pass
+
+    #@abc.abstractmethod
+    #def delete_content(self, path: str, metadata_format: str):
+    #    pass
+
+    #@abc.abstractmethod
+    #def get_paths(self, pattern: Optional[str] = None) -> Iterator[str]:
+    #    """ Get all paths matching pattern, if pattern is provided, else all keys """
+    #    pass
 
     @abc.abstractmethod
     def content_iterator(self, path: str) -> Iterator:
