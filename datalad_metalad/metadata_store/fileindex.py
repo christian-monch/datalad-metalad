@@ -37,7 +37,7 @@ class FileIndex(metaclass=abc.ABCMeta):
     def replace_metadata_at_path(self, path: str, metadata_format: str, content: bytearray):
         pass
 
-    def get_content(self, path: str, metadata_format: str) -> bytes:
+    def get_metadata(self, path: str, metadata_format: str) -> bytes:
         pass
 
     def get_all_content(self, path: str) -> Dict[str, bytes]:
@@ -53,7 +53,7 @@ class FileIndex(metaclass=abc.ABCMeta):
     #    pass
 
     @abc.abstractmethod
-    def content_iterator(self, path: str) -> Iterator:
+    def metadata_iterator(self, path: str, metadata_format: str) -> Iterator:
         pass
 
     @staticmethod

@@ -74,5 +74,5 @@ if __name__ == "__main__":
 
     combined_ios.flush()
 
-    print(f"combined_ios('left/a'): {combined_ios.get_content('left/a')}")
-    print(f"combined_ios('right/a'): {combined_ios.get_content('right/a')}")
+    print(f"combined_ios('left/a'): {combined_ios.get_metadata('left/a')}")
+    print(f"combined_ios('right/a'): {combined_ios.get_metadata('right/a')}")

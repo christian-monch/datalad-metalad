@@ -113,7 +113,7 @@ class SimpleFileIndex(FileIndex):
         self.dirty = True
 
     def _get_region_entry(self, path: str, metadata_format: str) -> MetadataRegionEntry:
-        return self.paths[path][metadata_format]
+        return self.paths[path].format_entries[metadata_format]
 
     def write(self):
         if self.dirty is True:
@@ -173,18 +173,22 @@ class SimpleFileIndex(FileIndex):
         self.delete_metadata_from_path(path, metadata_format, auto_delete_path=False)
         self.add_metadata_to_path(path, metadata_format, content)
 
-    def get_content(self, path: str, metadata: str) -> bytes:
+    def get_metadata_formats(self, path: str) -> List[str]:
+        self._ensure_path_exists(path)
+        return list(self.paths[path].format_entries.keys())
+
+    def get_metadata(self, path: str, metadata: str) -> bytes:
         self._ensure_format_exists(path, metadata)
         region_entry = self._get_region_entry(path, metadata)
         return self.storage_backend.read_content(region_entry.content_offset, region_entry.content_size)
 
-    def get_keys(self, pattern: Optional[str] = None) -> Iterator[str]:
+    def get_paths(self, pattern: Optional[str] = None) -> Iterator[str]:
         if pattern:
             matcher = re.compile(pattern)
             return filter(lambda key: matcher.match(key) is not None, self.paths.keys())
         return iter(self.paths.keys())
 
-    def content_iterator(self, path: str) -> Iterator:
+    def metadata_iterator(self, path: str, metadata_format: str) -> Iterator:
         self._ensure_path_exists(path)
         return self.storage_backend.byte_iterator(self.paths[path].content_offset, self.paths[path].size)
 
@@ -276,6 +280,10 @@ if __name__ == "__main__":
     except (PathAlreadyExists, MetadataAlreadyExists):
         print("sl seems to be set, skipping its creation")
 
+    print(f"lios('/', 'ng_dataset'): {lios.get_metadata('/', 'ng_dataset')}")
+    print(f"lios('/e10', 'ng_file'): {lios.get_metadata('/e10', 'ng_file')}")
+    print(f"lios('/e20', 'ng_file'): {lios.get_metadata('/e20', 'ng_file')}")
+
     exit(0)
     rios = SimpleFileIndex("/home/cristian/tmp/index_store_test/right", FileStorageBackend)
     try:
@@ -300,8 +308,8 @@ if __name__ == "__main__":
     flush_time = time.time()
     print(f"duration of flush: {int(flush_time - combine_time)}")
 
-    print(f"combined_ios('left/e10'): {combined_ios.get_content('left/e10')}")
-    print(f"combined_ios('right/e20'): {combined_ios.get_content('right/e20')}")
+    print(f"combined_ios('left/e10'): {combined_ios.get_metadata('left/e10')}")
+    print(f"combined_ios('right/e20'): {combined_ios.get_metadata('right/e20')}")
 
     for path, reader in combined_ios:
         print("+" * 20)
@@ -310,5 +318,5 @@ if __name__ == "__main__":
             print(b)
 
     print("XXXXX" * 20)
-    for b in combined_ios.content_iterator("left/e19"):
+    for b in combined_ios.metadata_iterator("left/e19"):
         print(b)

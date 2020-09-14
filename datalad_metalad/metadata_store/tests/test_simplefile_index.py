@@ -43,9 +43,9 @@ class TestSimpleFileIndex(unittest.TestCase):
         self.assertRaises(PathAlreadyExists, sfi.add_content, "a1", content[1])
         self.assertRaises(PathAlreadyExists, sfi.add_content, "a2", content[2])
 
-        self.assertEqual(sfi.get_content("a0"), content[0])
-        self.assertEqual(sfi.get_content("a1"), content[1])
-        self.assertEqual(sfi.get_content("a2"), content[2])
+        self.assertEqual(sfi.get_metadata("a0"), content[0])
+        self.assertEqual(sfi.get_metadata("a1"), content[1])
+        self.assertEqual(sfi.get_metadata("a2"), content[2])
 
     def test_delete(self):
         sfi = SimpleFileIndex("dir", DummyStorageBackend)
@@ -62,15 +62,15 @@ class TestSimpleFileIndex(unittest.TestCase):
         self.assertRaises(KeyError, sfi.delete_content, "a0")
 
         sfi.add_content("a0", content[1])
-        self.assertEqual(sfi.get_content("a0"), content[1])
+        self.assertEqual(sfi.get_metadata("a0"), content[1])
 
     def test_replace(self):
         sfi = SimpleFileIndex("dir", DummyStorageBackend)
         content = self.get_content_objects(2)
         sfi.add_content("a0", content[0])
-        self.assertEqual(sfi.get_content("a0"), content[0])
+        self.assertEqual(sfi.get_metadata("a0"), content[0])
         sfi.replace_content("a0", content[1])
-        self.assertEqual(sfi.get_content("a0"), content[1])
+        self.assertEqual(sfi.get_metadata("a0"), content[1])
 
         self.assertRaises(KeyError, sfi.replace_content, "xx", content[0])
 
@@ -78,12 +78,12 @@ class TestSimpleFileIndex(unittest.TestCase):
         content = bytearray(range(3))
         sfi = SimpleFileIndex("dir", DummyStorageBackend)
         sfi.add_content("a1", content)
-        self.assertEqual(tuple(sfi.get_keys()), ("a1",))
+        self.assertEqual(tuple(sfi.get_paths()), ("a1",))
         sfi.add_content("a2", content)
-        self.assertEqual(tuple(sfi.get_keys()), ("a1", "a2"))
+        self.assertEqual(tuple(sfi.get_paths()), ("a1", "a2"))
         sfi.add_content("a3", content)
-        self.assertEqual(tuple(sfi.get_keys()), ("a1", "a2", "a3"))
-        self.assertEqual(tuple(sfi.get_keys("a[12]")), ("a1", "a2"))
+        self.assertEqual(tuple(sfi.get_paths()), ("a1", "a2", "a3"))
+        self.assertEqual(tuple(sfi.get_paths("a[12]")), ("a1", "a2"))
 
 
 if __name__ == '__main__':
