@@ -28,6 +28,9 @@ class FileStorageBackend(StorageBackend):
         self.write_cache = []
         self.join = join
 
+    def __del__(self):
+        self.file.close()
+
     def __len__(self):
         return self.current_offset + max([
             cache_entry[0] + cache_entry[1] for cache_entry in self.write_cache] or [0])
