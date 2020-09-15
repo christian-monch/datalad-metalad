@@ -183,9 +183,9 @@ class SimpleFileIndex(FileIndex):
         self._ensure_path_exists(path)
         return list(self.paths[path].format_entries.keys())
 
-    def get_metadata(self, path: str, metadata: str) -> bytes:
-        self._ensure_format_exists(path, metadata)
-        region_entry = self._get_region_entry(path, metadata)
+    def get_metadata(self, path: str, metadata_format: str) -> bytes:
+        self._ensure_format_exists(path, metadata_format)
+        region_entry = self._get_region_entry(path, metadata_format)
         return self.storage_backend.read_content(region_entry.content_offset, region_entry.content_size)
 
     def get_paths(self, pattern: Optional[str] = None) -> Iterator[str]:
@@ -362,6 +362,6 @@ if __name__ == "__main__":
             print(b)
 
     print("XXXXX" * 20)
-    for b in lios.metadata_iterator("/left/e19", "ng_file"):
+    for b in combined_ios.metadata_iterator("/left/e19", "ng_file"):
         print(b)
 

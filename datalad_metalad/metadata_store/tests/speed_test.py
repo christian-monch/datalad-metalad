@@ -1,35 +1,51 @@
 
 
-from metadata_store import MetadataStore
-from exceptions import PathAlreadyExists
+from datalad_metalad.metadata_store.simplefile_index import SimpleFileIndex
+from datalad_metalad.metadata_store.exceptions import PathAlreadyExists, MetadataAlreadyExists
 
 
 if __name__ == "__main__":
     import time
+    from datalad_metalad.metadata_store.filestorage_backend import FileStorageBackend
 
-    lios = MetadataStore("/home/cristian/tmp/index_store_test/sl")
+    entries = 10000000
+
+    lios = SimpleFileIndex("/home/cristian/tmp/index_store_test/left", FileStorageBackend)
     try:
-        for i in range(10000000):
-            lios.add_content(f"e{i}", bytearray(f"#{i}", encoding="utf-8"))
+        lios.add_dataset_entry("/", {"left side dataset meta-metadata": "true"})
+        lios.add_metadata_to_path(
+            "/",
+            'ng_dataset',
+            bytearray('{content: "left side ng dataset info"}', encoding='utf-8'))
+
+        for i in range(entries):
+            lios.add_file_entry(f"/e{i}")
+            lios.add_metadata_to_path(f"/e{i}", "ng_file", bytearray(f"left #{i}", encoding="utf-8"))
         lios.flush()
-    except PathAlreadyExists:
+    except (PathAlreadyExists, MetadataAlreadyExists):
         print("sl seems to be set, skipping its creation")
 
-    rios = MetadataStore("/home/cristian/tmp/index_store_test/sr")
+    rios = SimpleFileIndex("/home/cristian/tmp/index_store_test/right", FileStorageBackend)
     try:
-        for i in range(10000000):
-            rios.add_content(f"e{i}", bytearray(f"#{i}", encoding="utf-8"))
+        rios.add_dataset_entry("/", {"right side dataset meta-metadata": "true"})
+        rios.add_metadata_to_path(
+            "/",
+            'ng_dataset',
+            bytearray('{content: "right side dataset info"}', encoding='utf-8'))
+
+        for i in range(entries):
+            rios.add_file_entry(f"/e{i}")
+            rios.add_metadata_to_path(f"/e{i}", "ng_file", bytearray(f"right #{i}", encoding="utf-8"))
         rios.flush()
-    except PathAlreadyExists:
+    except (PathAlreadyExists, MetadataAlreadyExists):
         print("sr seems to be set, skipping its creation")
 
     start_time = time.time()
 
-    combined_ios = join(
-        "/home/cristian/tmp/index_store_test/scombined",
-        lios, "left",
-        rios, "right"
-    )
+    combined_ios = SimpleFileIndex.join(
+        "/home/cristian/tmp/index_store_test/joined",
+        "/left", lios,
+        "/right", rios)
 
     combine_time = time.time()
     print(f"duration of combine: {int(combine_time - start_time)}")
@@ -39,40 +55,21 @@ if __name__ == "__main__":
     flush_time = time.time()
     print(f"duration of flush: {int(flush_time - combine_time)}")
 
-    exit(0)
-    # Keep all content file separated
+    print(f"combined_ios('/left/e10'): {combined_ios.get_metadata('/left/e10', 'ng_file')}")
+    print(f"combined_ios('/right/e20'): {combined_ios.get_metadata('/right/e20', 'ng_file')}")
 
-    rios = MetadataStore("/home/cristian/tmp/index_store_test/sr")
-    test_content = bytearray(f"Zeit: {time.time()}", encoding="utf-8")
-    if "a" not in rios:
-        rios.add_content("a", test_content)
-        rios.flush()
-    else:
-        rios.replace_content("a", test_content)
-        rios.flush()
-    test_content = rios.get_content("a")
-    print(f"rios: {test_content}")
+    print(f"lios('/', 'ng_dataset'): {lios.get_metadata('/', 'ng_dataset')}")
+    print(f"lios('/e10', 'ng_file'): {lios.get_metadata('/e10', 'ng_file')}")
+    print(f"lios('/e20', 'ng_file'): {lios.get_metadata('/e20', 'ng_file')}")
 
+    for path, metadata, reader in combined_ios:
+        print("+" * 20)
+        print(f"[{metadata}]: {path}")
+        for b in reader:
+            print(b)
+        if path == "/left/e100":
+            break
 
-    print("----------------")
-    print(lios.paths)
-    print(lios.deleted_paths)
-    print(lios.current_file_index)
-    print(lios.current_offset)
-
-    print("----------------")
-    print(rios.paths)
-    print(rios.deleted_paths)
-    print(rios.current_file_index)
-    print(rios.current_offset)
-
-    print("----------------")
-    print(combined_ios.paths)
-    print(combined_ios.deleted_paths)
-    print(combined_ios.current_file_index)
-    print(combined_ios.current_offset)
-
-    combined_ios.flush()
-
-    print(f"combined_ios('left/a'): {combined_ios.get_metadata('left/a')}")
-    print(f"combined_ios('right/a'): {combined_ios.get_metadata('right/a')}")
+    print("XXXXX" * 20)
+    for b in combined_ios.metadata_iterator("/left/e19", "ng_file"):
+        print(b)
