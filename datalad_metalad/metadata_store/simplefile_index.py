@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import re
-from typing import Dict, List, Iterator, Optional, Type, Union
+from typing import List, Iterator, Optional, Type
 
 from datalad_metalad.metadata_store.exceptions import MetadataAlreadyExists, PathAlreadyExists
 from datalad_metalad.metadata_store.fileindex import FileIndex, JSONObject
@@ -19,13 +19,16 @@ class MetadataRegionEntry(object):
 
 
 class FileIndexEntry(object):
-    def __init__(self):
-        self.format_entries = {}
+    def __init__(self, initial_entries: Optional[dict] = None):
+        self.format_entries = (
+            initial_entries
+            if initial_entries is not None
+            else {})
 
 
 class DatasetIndexEntry(FileIndexEntry):
-    def __init__(self, meta_metadata: JSONObject):
-        super(DatasetIndexEntry, self).__init__()
+    def __init__(self, meta_metadata: JSONObject, initial_entries: Optional[dict] = None):
+        super(DatasetIndexEntry, self).__init__(initial_entries)
         self.meta_metadata = meta_metadata
 
 
@@ -90,7 +93,10 @@ class SimpleFileIndex(FileIndex):
 
     def __iter__(self):
         for path, entry in self.paths.items():
-            yield path, self.storage_backend.byte_iterator(entry.content_offset, entry.size)
+            for metadata_format, format_entry in entry.format_entries.items():
+                yield path, metadata_format, self.storage_backend.byte_iterator(
+                    format_entry.content_offset,
+                    format_entry.content_size)
 
     def _ensure_path_exists(self, path: str):
         if path not in self.paths:
@@ -189,8 +195,10 @@ class SimpleFileIndex(FileIndex):
         return iter(self.paths.keys())
 
     def metadata_iterator(self, path: str, metadata_format: str) -> Iterator:
-        self._ensure_path_exists(path)
-        return self.storage_backend.byte_iterator(self.paths[path].content_offset, self.paths[path].size)
+        self._ensure_format_exists(path, metadata_format)
+        return self.storage_backend.byte_iterator(
+            self.paths[path].format_entries[metadata_format].content_offset,
+            self.paths[path].format_entries[metadata_format].content_size)
 
     def flush(self):
         self.storage_backend.flush()
@@ -213,7 +221,7 @@ def join(joined_base_dir_name: str,
     assert left_prefix != right_prefix
     assert isinstance(left_index, SimpleFileIndex)
     assert isinstance(right_index, SimpleFileIndex)
-    assert type(left_index.storage_backend) == type(right_index.storage_backend)
+    assert isinstance(left_index.storage_backend, type(right_index.storage_backend))
     assert left_index.base_dir_name != joined_base_dir_name
     assert right_index.base_dir_name != left_index.base_dir_name
 
@@ -225,16 +233,46 @@ def join(joined_base_dir_name: str,
     joined_index = SimpleFileIndex(
         joined_base_dir_name,
         type(left_index.storage_backend),
-        True)
+        empty=True)
 
     # Fix paths
     fixed_paths_from_left = {
-        join_paths(left_prefix, path): FileIndexEntry(region.content_offset + left_offset, region.size)
-        for path, region in left_index.paths.items()}
+        join_paths(left_prefix, path): (
+            DatasetIndexEntry(
+                index_entry.meta_metadata,
+                {
+                    metadata_format: MetadataRegionEntry(region.content_offset + left_offset, region.content_size)
+                    for metadata_format, region in index_entry.format_entries.items()
+                }
+            )
+            if isinstance(index_entry, DatasetIndexEntry)
+            else FileIndexEntry(
+                {
+                    metadata_format: MetadataRegionEntry(region.content_offset + left_offset, region.content_size)
+                    for metadata_format, region in index_entry.format_entries.items()
+                }
+            )
+        )
+        for path, index_entry in left_index.paths.items()}
 
     fixed_paths_from_right = {
-        join_paths(right_prefix, path): FileIndexEntry(region.content_offset + right_offset, region.size)
-        for path, region in right_index.paths.items()}
+        join_paths(right_prefix, path): (
+            DatasetIndexEntry(
+                index_entry.meta_metadata,
+                {
+                    metadata_format: MetadataRegionEntry(region.content_offset + right_offset, region.content_size)
+                    for metadata_format, region in index_entry.format_entries.items()
+                }
+            )
+            if isinstance(index_entry, DatasetIndexEntry)
+            else FileIndexEntry(
+                {
+                    metadata_format: MetadataRegionEntry(region.content_offset + right_offset, region.content_size)
+                    for metadata_format, region in index_entry.format_entries.items()
+                }
+            )
+        )
+        for path, index_entry in right_index.paths.items()}
 
     joined_index.paths = {
         **fixed_paths_from_left,
@@ -243,11 +281,11 @@ def join(joined_base_dir_name: str,
 
     # Fix deleted regions
     fixed_deleted_regions_from_left = [
-        FileIndexEntry(region.content_offset + left_offset, region.size)
+        MetadataRegionEntry(region.content_offset + left_offset, region.size)
         for region in left_index.deleted_regions]
 
     fixed_deleted_regions_from_right = [
-        FileIndexEntry(region.content_offset + right_offset, region.size)
+        MetadataRegionEntry(region.content_offset + right_offset, region.size)
         for region in right_index.deleted_regions]
 
     joined_index.deleted_regions = fixed_deleted_regions_from_left + fixed_deleted_regions_from_right
@@ -267,38 +305,40 @@ if __name__ == "__main__":
 
     lios = SimpleFileIndex("/home/cristian/tmp/index_store_test/left", FileStorageBackend)
     try:
-        lios.add_dataset_entry("/", {"dataset_info": "true"})
+        lios.add_dataset_entry("/", {"left side dataset meta-metadata": "true"})
         lios.add_metadata_to_path(
             "/",
             'ng_dataset',
-            bytearray('{content: "some ng dataset info"}', encoding='utf-8'))
+            bytearray('{content: "left side ng dataset info"}', encoding='utf-8'))
 
         for i in range(entries):
             lios.add_file_entry(f"/e{i}")
-            lios.add_metadata_to_path(f"/e{i}", "ng_file", bytearray(f"#{i}", encoding="utf-8"))
+            lios.add_metadata_to_path(f"/e{i}", "ng_file", bytearray(f"left #{i}", encoding="utf-8"))
         lios.flush()
     except (PathAlreadyExists, MetadataAlreadyExists):
         print("sl seems to be set, skipping its creation")
 
-    print(f"lios('/', 'ng_dataset'): {lios.get_metadata('/', 'ng_dataset')}")
-    print(f"lios('/e10', 'ng_file'): {lios.get_metadata('/e10', 'ng_file')}")
-    print(f"lios('/e20', 'ng_file'): {lios.get_metadata('/e20', 'ng_file')}")
-
-    exit(0)
     rios = SimpleFileIndex("/home/cristian/tmp/index_store_test/right", FileStorageBackend)
     try:
+        rios.add_dataset_entry("/", {"right side dataset meta-metadata": "true"})
+        rios.add_metadata_to_path(
+            "/",
+            'ng_dataset',
+            bytearray('{content: "right side dataset info"}', encoding='utf-8'))
+
         for i in range(entries):
-            rios.add_content(f"e{i}", bytearray(f"#{i}", encoding="utf-8"))
+            rios.add_file_entry(f"/e{i}")
+            rios.add_metadata_to_path(f"/e{i}", "ng_file", bytearray(f"right #{i}", encoding="utf-8"))
         rios.flush()
-    except PathAlreadyExists:
+    except (PathAlreadyExists, MetadataAlreadyExists):
         print("sr seems to be set, skipping its creation")
 
     start_time = time.time()
 
     combined_ios = SimpleFileIndex.join(
         "/home/cristian/tmp/index_store_test/joined",
-        "left", lios,
-        "right", rios)
+        "/left", lios,
+        "/right", rios)
 
     combine_time = time.time()
     print(f"duration of combine: {int(combine_time - start_time)}")
@@ -308,15 +348,20 @@ if __name__ == "__main__":
     flush_time = time.time()
     print(f"duration of flush: {int(flush_time - combine_time)}")
 
-    print(f"combined_ios('left/e10'): {combined_ios.get_metadata('left/e10')}")
-    print(f"combined_ios('right/e20'): {combined_ios.get_metadata('right/e20')}")
+    print(f"combined_ios('/left/e10'): {combined_ios.get_metadata('/left/e10', 'ng_file')}")
+    print(f"combined_ios('/right/e20'): {combined_ios.get_metadata('/right/e20', 'ng_file')}")
 
-    for path, reader in combined_ios:
+    print(f"lios('/', 'ng_dataset'): {lios.get_metadata('/', 'ng_dataset')}")
+    print(f"lios('/e10', 'ng_file'): {lios.get_metadata('/e10', 'ng_file')}")
+    print(f"lios('/e20', 'ng_file'): {lios.get_metadata('/e20', 'ng_file')}")
+
+    for path, metadata, reader in combined_ios:
         print("+" * 20)
-        print(path)
+        print(f"[{metadata}]: {path}")
         for b in reader:
             print(b)
 
     print("XXXXX" * 20)
-    for b in combined_ios.metadata_iterator("left/e19"):
+    for b in lios.metadata_iterator("/left/e19", "ng_file"):
         print(b)
+
