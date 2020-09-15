@@ -18,15 +18,7 @@ class FileIndex(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def add_file_entry(self, path: str):
-        pass
-
-    @abc.abstractmethod
-    def add_dataset_entry(self, path: str, meta_metadata: JSONObject):
-        pass
-
-    @abc.abstractmethod
-    def modify_dataset_entry(self, path: str, meta_metadata: str):
+    def add_path(self, path: str):
         pass
 
     @abc.abstractmethod
@@ -37,10 +29,20 @@ class FileIndex(metaclass=abc.ABCMeta):
     def replace_metadata_at_path(self, path: str, metadata_format: str, content: bytearray):
         pass
 
+    @abc.abstractmethod
     def get_metadata(self, path: str, metadata_format: str) -> bytes:
         pass
 
-    def get_all_content(self, path: str) -> Dict[str, bytes]:
+    @abc.abstractmethod
+    def get_metadata_formats(self, path: str) -> List[str]:
+        pass
+
+    @abc.abstractmethod
+    def set_dataset_entry(self, path: str, meta_metadata: JSONObject):
+        pass
+
+    @abc.abstractmethod
+    def modify_dataset_entry(self, path: str, meta_metadata: str):
         pass
 
     #@abc.abstractmethod

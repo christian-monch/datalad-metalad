@@ -33,7 +33,7 @@ class JoinTests(unittest.TestCase):
         metadata_store = SimpleFileIndex(base_dir, FileStorageBackend)
         if initial_content:
             for path, value in initial_content.items():
-                metadata_store.add_file_entry(path)
+                metadata_store.add_path(path)
                 metadata_store.add_metadata_to_path(path, self.TestFormat, value)
         return metadata_store
 
@@ -43,10 +43,10 @@ class JoinTests(unittest.TestCase):
         metadata_store = SimpleFileIndex(base_dir, FileStorageBackend)
         for command in initialization_commands:
             if command.command == StoreCommand.ADD_FILE:
-                metadata_store.add_file_entry(command.path)
+                metadata_store.add_path(command.path)
                 metadata_store.add_metadata_to_path(command.path, command.metadata_format, command.value)
             if command.command == StoreCommand.ADD_DATASET:
-                metadata_store.add_dataset_entry(command.path)
+                metadata_store.set_dataset_entry(command.path)
                 metadata_store.add_metadata_to_path(command.path, command.metadata_format, command.value)
             elif command.command == StoreCommand.DELETE:
                 metadata_store.delete_metadata_from_path(command.path, command.metadata_format)

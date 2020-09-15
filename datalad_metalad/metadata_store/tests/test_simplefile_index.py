@@ -37,7 +37,7 @@ class TestSimpleFileIndex(unittest.TestCase):
         return [bytearray(range(i, i + length)) for i in range(number)]
 
     def add_file_metadata(self, index: SimpleFileIndex, path: str, metadata_format: str, content: bytearray):
-        index.add_file_entry(path)
+        index.add_path(path)
         index.add_metadata_to_path(path, metadata_format, content)
 
     def test_append(self):

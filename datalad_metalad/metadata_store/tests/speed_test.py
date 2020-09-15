@@ -12,14 +12,14 @@ if __name__ == "__main__":
 
     lios = SimpleFileIndex("/home/cristian/tmp/index_store_test/left", FileStorageBackend)
     try:
-        lios.add_dataset_entry("/", {"left side dataset meta-metadata": "true"})
+        lios.set_dataset_entry("/", {"left side dataset meta-metadata": "true"})
         lios.add_metadata_to_path(
             "/",
             'ng_dataset',
             bytearray('{content: "left side ng dataset info"}', encoding='utf-8'))
 
         for i in range(entries):
-            lios.add_file_entry(f"/e{i}")
+            lios.add_path(f"/e{i}")
             lios.add_metadata_to_path(f"/e{i}", "ng_file", bytearray(f"left #{i}", encoding="utf-8"))
         lios.flush()
     except (PathAlreadyExists, MetadataAlreadyExists):
@@ -27,14 +27,14 @@ if __name__ == "__main__":
 
     rios = SimpleFileIndex("/home/cristian/tmp/index_store_test/right", FileStorageBackend)
     try:
-        rios.add_dataset_entry("/", {"right side dataset meta-metadata": "true"})
+        rios.set_dataset_entry("/", {"right side dataset meta-metadata": "true"})
         rios.add_metadata_to_path(
             "/",
             'ng_dataset',
             bytearray('{content: "right side dataset info"}', encoding='utf-8'))
 
         for i in range(entries):
-            rios.add_file_entry(f"/e{i}")
+            rios.add_path(f"/e{i}")
             rios.add_metadata_to_path(f"/e{i}", "ng_file", bytearray(f"right #{i}", encoding="utf-8"))
         rios.flush()
     except (PathAlreadyExists, MetadataAlreadyExists):
