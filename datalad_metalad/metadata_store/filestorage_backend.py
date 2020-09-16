@@ -20,6 +20,9 @@ class FileStorageBackendIterator:
 
 
 class FileStorageBackend(StorageBackend):
+
+    BackEndVersion = "FileStorageBackend-0.1"
+
     def __init__(self, file_name: str):
         super(FileStorageBackend, self).__init__(file_name)
         self.file_name = file_name
@@ -29,7 +32,8 @@ class FileStorageBackend(StorageBackend):
         self.join = join
 
     def __del__(self):
-        self.file.close()
+        if hasattr(self, "file"):
+            self.file.close()
 
     def __len__(self):
         return self.current_offset + max([
@@ -59,6 +63,10 @@ class FileStorageBackend(StorageBackend):
             current_position += (offset + len(content))
         self.file.flush()
         self.write_cache = []
+
+    @staticmethod
+    def get_version() -> str:
+        return FileStorageBackend.BackEndVersion
 
 
 def join(joined_file_name, left_backend, right_backend) -> Tuple[Any, int, int]:

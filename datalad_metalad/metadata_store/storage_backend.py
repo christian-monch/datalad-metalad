@@ -32,3 +32,11 @@ class StorageBackend(metaclass=ABCMeta):
         the index correction of the right entries
         """
         raise NotImplementedError
+
+    @staticmethod
+    def get_version() -> str:
+        """
+        Return a version string associated with this storage format. Identical
+        versions indicate storage compatibility
+        """
+        pass

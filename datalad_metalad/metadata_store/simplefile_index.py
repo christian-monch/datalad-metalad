@@ -28,6 +28,7 @@ class SimpleFileIndex(FileIndex):
         self.paths = {}
         self.dataset_paths = {}
         self.deleted_regions = []
+        self.storage_backend_version = storage_backend_class.get_version()
         if not empty:
             try:
                 self.read()
@@ -80,6 +81,7 @@ class SimpleFileIndex(FileIndex):
         if self.dirty is True:
             index_object = {
                 "version": self.IndexVersion,
+                "backend-version": self.storage_backend.get_version(),
                 "paths": self.paths,
                 "dataset_paths": self.dataset_paths,
                 "deleted_regions": self.deleted_regions}
@@ -95,6 +97,14 @@ class SimpleFileIndex(FileIndex):
             raise ValueError(
                 f"index file version {index_version} does not "
                 f"match code version {self.IndexVersion}")
+        backend_version = index_info["backend-version"]
+        if backend_version != self.storage_backend_version:
+            raise ValueError(
+                f"backend version {backend_version} used for index does not "
+                f"match code version {self.storage_backend_version}")
+        self.paths = index_info["paths"]
+        self.dataset_paths = index_info["dataset_paths"]
+        self.deleted_regions = index_info["deleted_regions"]
         self.dirty = False
 
     def add_path(self, path: str):
@@ -115,7 +125,7 @@ class SimpleFileIndex(FileIndex):
         #self._ensure_format_exists(path, metadata_format)
         self.deleted_regions.append(self.paths[path][metadata_format])
         del self.paths[path][metadata_format]
-        if not self.paths[path] and auto_delete_path is True:
+        if not self.paths[path] and auto_delete_path is True and path not in self.dataset_paths:
             del self.paths[path]
         self.dirty = True
 
