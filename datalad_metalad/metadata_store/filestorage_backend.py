@@ -16,7 +16,7 @@ class FileStorageBackendIterator:
             if len(value) > self.bytes_left:
                 value = value[:self.bytes_left]
             self.bytes_left -= len(value)
-            yield value
+            yield from value
 
 
 class FileStorageBackend(StorageBackend):

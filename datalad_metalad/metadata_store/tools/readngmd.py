@@ -2,6 +2,7 @@
 Read basic data from a given metadata index
 """
 from argparse import ArgumentParser
+from itertools import islice
 
 from datalad_metalad.metadata_store.filestorage_backend import FileStorageBackend
 from datalad_metalad.metadata_store.simplefile_index import SimpleFileIndex
@@ -28,7 +29,7 @@ def main():
             print(f"\"{path}\"{': (dataset root)' if is_dataset else ':'}")
             current_path = path
         if arguments.show_metadata_content is True:
-            metadata = "".join([b.decode() for b in reader])
+            metadata = "".join([chr(content_part[0]) for content_part in zip(reader, [0])])
             print(f"  metadata: {metadata_format}: {repr(metadata)}")
         else:
             print(f"  metadata: {metadata_format}")
