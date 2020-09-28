@@ -60,5 +60,8 @@ setup(
             'metalad_runprov=datalad_metalad.extractors.runprov:RunProvenanceExtractor',
             'metalad_studyminimeta=datalad_metalad.extractors.studyminimeta.main:StudyMiniMetaExtractor',
         ],
+        'datalad.metadata.indexers': [
+            'metalad_studyminimeta=datalad_metalad.indexers.studyminimeta:StudyMiniMetaIndexer',
+        ]
     },
 )
