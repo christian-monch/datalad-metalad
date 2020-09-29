@@ -61,9 +61,18 @@ class StudyMiniMetaExtractor(MetadataExtractor):
                 metadata_object = yaml.safe_load(input_stream)
         except FileNotFoundError:
             yield {
-                "status": "failed",
+                "status": "ok",
                 "metadata": {},
                 "type": "dataset"
+            }
+            return
+
+        if not isinstance(metadata_object, dict):
+            yield {
+                "status": "error",
+                "metadata": None,
+                "type": "dataset",
+                'message': "Content of metadata-file is not valid"
             }
             return
 

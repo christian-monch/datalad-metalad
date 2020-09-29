@@ -49,6 +49,7 @@ from datalad.interface.results import (
 )
 from . import (
     exclude_from_metadata,
+    get_metadata_type,
     location_keys,
     ReadOnlyDict,
     _val2hashable,
@@ -1096,10 +1097,13 @@ def _extract_metadata(fromds, tods, exinfo):
 
     unique_cm = {}
 
+    configured_extractors = get_metadata_type(fromds)
+
     # perform the actual extraction
     for res in fromds.meta_extract(
             # just let it do its thing
             path=None,
+            sources=[configured_extractors] if isinstance(configured_extractors, str) else configured_extractors,
             # None indicates to honor a datasets per-extractor configuration
             # and to be on by default
             process_type=None,
