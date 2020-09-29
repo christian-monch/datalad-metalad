@@ -975,7 +975,7 @@ def _do_top_aggregation(ds, extract_from_ds, force, vanished_datasets, cache):
             # we already know something about this dataset
             # check if referenced objects need to be deleted
             # replace this record with the incoming one
-            for objtype in {'dataset_info', 'content_info'} & set(agginfo.keys()) & set(old_srcds_info.keys):
+            for objtype in {'dataset_info', 'content_info'} & set(agginfo.keys()) & set(old_srcds_info.keys()):
                 if objtype not in old_srcds_info:
                     # all good
                     continue
