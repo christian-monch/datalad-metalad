@@ -43,15 +43,14 @@ setup(
     long_description=long_description,
     packages=[pkg for pkg in find_packages('.') if pkg.startswith('datalad')],
     install_requires=[
-        'datalad>=0.14.0',
-        'datalad-metadata-model'
+        'datalad>=0.14.0'
     ],
     entry_points={
         'datalad.extensions': [
             'metalad=datalad_metalad:command_suite',
         ],
         'datalad.tests': [
-            'metalad=datalad_metalad',
+            'metalad=datalad_metalad'
         ],
         'datalad.metadata.extractors': [
             'metalad_core=datalad_metalad.extractors.core:DataladCoreExtractor',
