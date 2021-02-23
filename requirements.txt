@@ -1,6 +1,5 @@
 
 nose
-coverage
 sphinx>=1.7.8
 sphinx-rtd-theme
 
@@ -9,4 +8,4 @@ sphinx-rtd-theme
 # Remove click and dataclasses once the metadata model distribution is on pypi
 click
 dataclasses
-git+https://github.com/christian-monch/metadata-model.git@dist_2#egg=datalad-metadata-model
+git+https://github.com/christian-monch/metadata-model.git@alpha2#egg=datalad-metadata-model
